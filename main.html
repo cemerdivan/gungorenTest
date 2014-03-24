@@ -1,0 +1,273 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Gungoren CBS</title>
+
+<link rel="stylesheet" href="jquery-ui-1.10.4.custom/css/custom-theme/jquery-ui-1.10.4.custom.css">
+<link rel="stylesheet" href="css/main.css">
+
+<script src="jquery-ui-1.10.4.custom/js/jquery-1.10.2.js"></script>
+<script src="jquery-ui-1.10.4.custom/js/jquery-ui-1.10.4.custom.js"></script>
+<script src="OpenLayers-2.13.1/OpenLayers.js"></script>
+
+<script src="main.js"></script>
+<script src="sorgula.js"></script>
+
+<script>
+
+$(document).ready(function(){
+	$( "#expand" ).click(function() {
+		$('#expand').blur();
+		$( "#right" ).toggle( "fold" );
+	});
+	
+    $( "#right" ).accordion({
+		collapsible: true,
+		heightStyle: "content"
+    });
+	
+	$( "#expand" ).button({
+      icons: {
+        primary: "ui-icon-triangle-1-sw"
+      }
+    });
+	
+	$( "#clear" ).button({
+      icons: {
+        primary: "ui-icon-closethick"
+      }
+    });
+
+});
+
+	var map;
+	var options;
+	var bounds;
+	var main;
+	var sorgu;
+	var formats;
+	var mahLayer;
+	var sokLayer;
+	var kapLayer;
+	var size = new OpenLayers.Size(21,25);
+	var offset = new OpenLayers.Pixel(-(size.w/2), -size.h);
+	var icon = new OpenLayers.Icon('http://www.openlayers.org/dev/img/marker.png', size, offset);
+	var marker;
+	
+	function parseURLParams(url) {
+		var queryStart = url.indexOf("?") + 1,
+			queryEnd   = url.indexOf("#") + 1 || url.length + 1,
+			query = url.slice(queryStart, queryEnd - 1),
+			pairs = query.replace(/\+/g, " ").split("&"),
+			parms = {}, i, n, v, nv;
+	
+		if (query === url || query === "") {
+			return;
+		}
+	
+		for (i = 0; i < pairs.length; i++) {
+			nv = pairs[i].split("=");
+			n = decodeURIComponent(nv[0]);
+			v = decodeURIComponent(nv[1]);
+	
+			if (!parms.hasOwnProperty(n)) {
+				parms[n] = [];
+			}
+	
+			parms[n].push(nv.length === 2 ? v : null);
+		}
+		return parms;
+	}
+	
+	function init()
+	{
+		bounds = new OpenLayers.Bounds(
+			404000.357768056, 4541348.27465729,
+            407634.711814079, 4545466.67624803
+        );
+		options = {
+			controls: [new OpenLayers.Control.PanZoomBar(),new OpenLayers.Control.Navigation(),new OpenLayers.Control.MousePosition()],
+			maxExtent: bounds,
+			maxResolution: 16.08750621382569,
+			projection: "EPSG:3137",
+			units: 'm',
+        };
+        map = new OpenLayers.Map('map', options);
+		main=new Main(map);
+		map.zoomToExtent(bounds);
+		 
+		var mahStyle = {strokeWidth:6,strokeOpacity:0.6,fillOpacity:0.4,strokeColor: "#5871f1",fillColor:"#5871f1"};
+		var sokStyle = {strokeWidth:6,strokeOpacity:1,strokeColor: "#374bb3"};
+		var kapStyle = {strokeWidth:6,strokeOpacity:1,fillOpacity:0.4,pointRadius:6,strokeColor: "#0f0b86",fillColor:"#0f0b86"};
+		
+		mahLayer = new OpenLayers.Layer.Vector( "Mahalle Vector Katmani",{style:mahStyle});
+		map.addLayer(mahLayer);
+		sokLayer = new OpenLayers.Layer.Vector( "Sokak Vector Katmani",{style:sokStyle});
+		map.addLayer(sokLayer);
+		kapLayer = new OpenLayers.Layer.Vector( "Kapi No Vector Katmani",{style:kapStyle});
+		map.addLayer(kapLayer);
+		
+	  	sorgu = new sorgula();
+		sorgu.updateFormat();
+	    sorgu.addmahalle();
+		
+		var markers = new OpenLayers.Layer.Markers( "Markers" );
+		map.addLayer(markers);
+		
+		$( "#clear" ).click(function() {
+			try{
+				markers.removeMarker(marker);
+				$( "#dialog" ).dialog( "close" );
+				$('#clear').blur();
+			}
+			catch(e){}
+		});
+		
+		$( "#oc1" ).slider({
+			range: "min",
+      		value: 100,
+     		min: 1,
+      		max: 100,
+      		slide: function(event, ui) {
+				map.layers[1].setOpacity(ui.value/100);
+      		}
+    	});
+	
+		$( "#oc2" ).slider({
+			range: "min",
+      		value: 100,
+     		min: 1,
+      		max: 100,
+      		slide: function(event, ui) {
+				map.layers[2].setOpacity(ui.value/100);
+      		}
+    	});
+	
+		$( "#oc3" ).slider({
+			range: "min",
+      		value: 100,
+     		min: 1,
+      		max: 100,
+      		slide: function(event, ui) {
+				map.layers[3].setOpacity(ui.value/100);
+      		}
+    	});
+		
+		$( "#oc4" ).slider({
+			range: "min",
+      		value: 100,
+     		min: 1,
+      		max: 100,
+      		slide: function(event, ui) {
+				map.layers[4].setOpacity(ui.value/100);
+      		}
+    	});
+		
+		map.events.register("click", map , function(e){
+			var lonlat = map.getLonLatFromViewPortPx(e.xy);
+			$( "#dialog" ).dialog({
+				position:[50,10],
+				//width: 200,
+                //height: 200,
+			});
+			marker=new OpenLayers.Marker(lonlat,icon)
+			markers.addMarker(marker);
+			var url="http://localhost:8080/Gungoren/main.html?x="+lonlat.lon+"&y="+lonlat.lat+"&z="+map.getZoom();
+			$( "#dialog" ).text("Bu konumu kopyalabilirsiniz: "+url).click(function(){
+				window.location = url;
+			});
+		});
+		
+		try{
+			var lon=parseFloat(parseURLParams(document.URL).x);
+			var lat=parseFloat(parseURLParams(document.URL).y);
+			var z=parseInt(parseURLParams(document.URL).z);
+			map.setCenter(new OpenLayers.LonLat(lon,lat),z);
+			marker=new OpenLayers.Marker(new OpenLayers.LonLat(lon,lat),icon);
+			markers.addMarker(marker);
+		}
+		catch(e){}
+		
+	}	
+
+</script>
+</head>
+
+<body onLoad="init()">
+
+	<div id="container">
+
+		<div id="center" >
+			<div id="map"></div>
+		</div>
+
+		<div id="right">
+            <h3>Katmanlar</h3>
+            <div>
+            	<table id="tablo">
+                	<tr>
+                    	<td>
+                		<input type="checkbox" checked="checked" id="1" onChange="main.checkboxControl(1)"/>Mahalle
+                        </td>
+                        <td>
+                        <div id="oc1"></div>
+                        </td>
+                    </tr>
+                    <tr>
+                    	<td>
+                		<input type="checkbox" id="2" onChange="main.checkboxControl(2)"/>Yol
+                        </td>
+                        <td>
+                        <div id="oc2"></div>
+                        </td>
+                    </tr>
+                    <tr>
+                    	<td>
+                		<input type="checkbox" id="3" onChange="main.checkboxControl(3)"/>Yapı
+                        </td>
+                        <td>
+                        <div id="oc3"></div>
+                        </td>
+                    </tr>
+                    <tr>
+                    	<td>
+                		<input type="checkbox" id="4" onChange="main.checkboxControl(4)"/>KapıNo
+                        </td>
+                        <td>
+                        <div id="oc4"></div>
+                        </td>
+                    </tr>
+				</table> 
+            </div>
+            <h3>Adres Bul</h3>
+            <div>
+                <form id="form" name="form"  method="post">
+                	<input type="checkbox" id="5" checked="checked" onChange="main.checkboxControl(5)"/>
+                    <select id="mahalle" style="width:227px !important">
+                        <option value="0">Lütfen Mahalle Seçiniz</option>
+                    </select>
+                    </br>
+                    </br>
+                    <input type="checkbox" id="6" checked="checked" onChange="main.checkboxControl(6)"/>
+                    <select id="sokak" style="width:227px !important">
+                        <option value="0"/>Lütfen Sokak Seçiniz</option>
+                    </select>
+                    </br>
+                    </br>
+                    <input type="checkbox" id="7" checked="checked" onChange="main.checkboxControl(7)"/>
+                    <select id="kapino" style="width:227px !important">
+                        <option value="0"/>Lütfen Kapı No Seçiniz</option>
+                    </select>                    
+                </form>
+            </div>
+        </div>
+
+	</div>
+    
+    <div id="dialog" title="Seçilen Konum"></div>
+    <button id="expand" style=" z-index:5; position:absolute; right:3px; top:3px">Gizle/Göster</button>
+    <button id="clear" style=" z-index:5; position:absolute; right:150px; top:3px">Temizle</button>
+
+</body>
+</html>
